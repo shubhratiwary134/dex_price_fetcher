@@ -1,3 +1,7 @@
+import { ethers } from "ethers";
+
+const provider = "";
+
 // -----------TOKEN ADDRESSES -----------
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
@@ -24,8 +28,27 @@ const ERC20_ABI = [
 
 async function getPriceForPool(factoryAdd: string): Promise<number> {
   console.log("starting the price fetch for the pool...");
+  const factory = new ethers.Contract(factoryAdd, FACTORY_ABI, provider);
+
+  const pairAddress = await factory.getPair(WETH, DAI);
+  if (pairAddress === ethers.ZeroAddress) {
+    throw new Error("Pair does not exist");
+  }
+  console.log(`Found pair at address: ${pairAddress}`);
+
+  const pair = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+
+  const token0 = await pair.token0();
+  const token1 = await pair.token1();
   // this function would be a helper to fetch the reserves of the pair and calculate the price
   return 13;
+}
+
+// -----------Helper-----------
+function getLexOrder(address1: string, address2: string): [string, string] {
+  // this function is used to return the token0 and token1 in lexicographical order
+  // this prevent the onchain calls and redundant if-else blocks to figure out the token0 and token1
+  return ["fugasi1", "fugasi2"];
 }
 
 async function main() {
