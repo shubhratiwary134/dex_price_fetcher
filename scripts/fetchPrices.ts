@@ -27,6 +27,7 @@ const ERC20_ABI = [
 ];
 
 async function getPriceForPool(factoryAdd: string): Promise<number> {
+  // this function would be a helper to fetch the reserves of the pair and calculate the price
   console.log("starting the price fetch for the pool...");
   const factory = new ethers.Contract(factoryAdd, FACTORY_ABI, provider);
 
@@ -40,17 +41,45 @@ async function getPriceForPool(factoryAdd: string): Promise<number> {
 
   const token0 = await pair.token0();
   const token1 = await pair.token1();
-  // this function would be a helper to fetch the reserves of the pair and calculate the price
-  return 13;
+  const [r0, r1] = await pair.getReserves();
+
+  const tokenInLexOrder = getLexOrder(WETH, DAI);
+
+  // decimals fetch for accurate price calculation
+  const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
+  const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
+  const dec0 = await token0Contract.decimals();
+  const dec1 = await token1Contract.decimals();
+
+  const reserve0 = Number(r0) / 10 ** dec0;
+  const reserve1 = Number(r1) / 10 ** dec1;
+
+  if (token0 === tokenInLexOrder) {
+    //  this means token0 is WETH and token1 is DAI
+    const price = reserve1 / reserve0;
+    return price; // DAI per WETH
+  } else {
+    const price = reserve0 / reserve1;
+    return price; // DAI per WETH
+  }
 }
 
 // -----------Helper-----------
-function getLexOrder(address1: string, address2: string): [string, string] {
+function getLexOrder(address1: string, address2: string): string {
   // this function is used to return the token0 and token1 in lexicographical order
   // this prevent the onchain calls and redundant if-else blocks to figure out the token0 and token1
-  return ["fugasi1", "fugasi2"];
+  return "Address of the first one basically";
+}
+function calculateProfit(price1: number, price2: number): number {
+  return Math.abs(price1 - price2);
 }
 
 async function main() {
   // here we will call the getPriceForPool function with the factory address
+  const uniPrice = await getPriceForPool(UNISWAP_V2_FACTORY);
+  console.log(`Uniswap V2 WETH/DAI Price: ${uniPrice} DAI per WETH`);
+  const sushiPrice = await getPriceForPool(SUSHISWAP_FACTORY);
+  console.log(`SushiSwap WETH/DAI Price: ${sushiPrice} DAI per WETH`);
+
+  const profit = calculateProfit(uniPrice, sushiPrice);
 }
