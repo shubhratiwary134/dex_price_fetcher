@@ -1,7 +1,29 @@
 import { ethers } from "ethers";
-import { configVariable } from "hardhat/config";
+import { config } from "hardhat";
+import assert from "node:assert";
 
-const MAINNET_RPC_URL = configVariable("MAINNET_RPC_URL").toString();
+const hardhatConfig = config.networks.hardhat;
+
+// 1. Narrow the type: Assert that this is the local simulated network
+// In Hardhat v3, the local network type is "edr-simulated"
+assert(
+  hardhatConfig.type === "edr-simulated",
+  "The 'hardhat' network is not defined or is not an 'edr-simulated' type"
+);
+
+// 2. Access 'forking' (TypeScript now knows it exists on this type)
+const forkingConfig = hardhatConfig.forking;
+
+if (!forkingConfig?.url) {
+  throw new Error("Forking is not configured in your hardhat.config.ts");
+}
+
+// 3. Retrieve the URL (handling both static strings and Config Variables)
+// Hardhat v3 config variables (like those from secrets) use .getUrl()
+const MAINNET_RPC_URL =
+  typeof forkingConfig.url === "object" && "getUrl" in forkingConfig.url
+    ? await forkingConfig.url.getUrl()
+    : forkingConfig.url;
 
 const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
 
@@ -57,8 +79,8 @@ async function getPriceForPool(
   const dec0 = await token0Contract.decimals();
   const dec1 = await token1Contract.decimals();
 
-  const reserve0 = Number(r0) / 10 ** dec0;
-  const reserve1 = Number(r1) / 10 ** dec1;
+  const reserve0 = parseFloat(ethers.formatUnits(r0, dec0));
+  const reserve1 = parseFloat(ethers.formatUnits(r1, dec1));
 
   if (token0.toLowerCase() === BaseTokenForPrice.toLowerCase()) {
     //  this means token0 is WETH and token1 is DAI
@@ -72,7 +94,7 @@ async function getPriceForPool(
 
 // -----------Helper-----------
 function calculateProfit(price1: number, price2: number): number {
-  const profit = price2 - price1;
+  const profit = Math.abs(price2 - price1);
   return profit;
 }
 
