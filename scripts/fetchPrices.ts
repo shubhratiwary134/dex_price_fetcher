@@ -28,13 +28,15 @@ const ERC20_ABI = [
 
 async function getPriceForPool(
   factoryAdd: string,
+  tokenA: string,
+  tokenB: string,
   BaseTokenForPrice: string
 ): Promise<number> {
   // this function would be a helper to fetch the reserves of the pair and calculate the price
   console.log("starting the price fetch for the pool...");
   const factory = new ethers.Contract(factoryAdd, FACTORY_ABI, provider);
 
-  const pairAddress = await factory.getPair(WETH, DAI);
+  const pairAddress = await factory.getPair(tokenA, tokenB);
   if (pairAddress === ethers.ZeroAddress) {
     throw new Error("Pair does not exist");
   }
@@ -72,9 +74,9 @@ function calculateProfit(price1: number, price2: number): number {
 
 async function main() {
   // here we will call the getPriceForPool function with the factory address
-  const uniPrice = await getPriceForPool(UNISWAP_V2_FACTORY, WETH);
+  const uniPrice = await getPriceForPool(UNISWAP_V2_FACTORY, WETH, DAI, WETH);
   console.log(`Uniswap V2 WETH/DAI Price: ${uniPrice} DAI per WETH`);
-  const sushiPrice = await getPriceForPool(SUSHISWAP_FACTORY, WETH);
+  const sushiPrice = await getPriceForPool(UNISWAP_V2_FACTORY, WETH, DAI, WETH);
   console.log(`SushiSwap WETH/DAI Price: ${sushiPrice} DAI per WETH`);
 
   const profit = calculateProfit(uniPrice, sushiPrice);
