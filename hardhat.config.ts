@@ -34,5 +34,12 @@ export default defineConfig({
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
+    hardhat: {
+      type: "edr-simulated",
+      chainType: "l1",
+      forking: {
+        url: configVariable("MAINNET_RPC_URL"),
+      },
+    },
   },
 });

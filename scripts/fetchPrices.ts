@@ -69,7 +69,8 @@ async function getPriceForPool(
 
 // -----------Helper-----------
 function calculateProfit(price1: number, price2: number): number {
-  return Math.abs(price1 - price2);
+  const profit = price2 - price1;
+  return profit;
 }
 
 async function main() {
@@ -80,4 +81,17 @@ async function main() {
   console.log(`SushiSwap WETH/DAI Price: ${sushiPrice} DAI per WETH`);
 
   const profit = calculateProfit(uniPrice, sushiPrice);
+
+  if (profit == 0) {
+    console.log("No arbitrage opportunity detected.");
+  } else {
+    console.log(
+      `Arbitrage opportunity detected! Potential profit: ${profit} DAI per WETH`
+    );
+  }
 }
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
