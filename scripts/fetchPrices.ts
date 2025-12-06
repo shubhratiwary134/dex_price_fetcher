@@ -1,6 +1,9 @@
 import { ethers } from "ethers";
+import { configVariable } from "hardhat/config";
 
-const provider = "";
+const MAINNET_RPC_URL = configVariable("MAINNET_RPC_URL").toString();
+
+const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
 
 // -----------TOKEN ADDRESSES -----------
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
