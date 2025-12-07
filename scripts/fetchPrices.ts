@@ -112,6 +112,10 @@ async function calculateProfitWithGivenTradeSize() {
   // making sure to factor in trading fees and slippage for a more accurate profit calculation
 }
 
+async function findPerfectTradeSize() {
+  // this function will iterate over different trade sizes to find the optimal one
+}
+
 async function main() {
   // here we will call the getPriceForPool function with the factory address
   const uniPrice = await getPriceForPool(UNISWAP_V2_FACTORY, WETH, DAI, WETH);
