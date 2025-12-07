@@ -31,6 +31,10 @@ const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 
+// ------------ROUTER ADDRESSES ------------
+const UNISWAP_ROUTER = "0x7a250d5630B4c539739dF2C5dAcb4c659F2488D";
+const SUSHI_ROUTER = "0xd9e1CE17f2641F24aE83637AB66a2CCA9C378B9F";
+
 // -----------FACTORY ADDRESSES -----------
 const UNISWAP_V2_FACTORY = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f";
 const SUSHISWAP_FACTORY = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac";
@@ -50,6 +54,12 @@ const ERC20_ABI = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
 ];
+
+const ROUTER_ABI = [
+  "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
+];
+
+// -----------Core Functions-----------
 
 async function getPriceForPool(
   factoryAdd: string,
@@ -107,9 +117,49 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
-async function calculateProfitWithGivenTradeSize() {
+async function calculateProfitWithGivenTradeSize(
+  tradeSize: number,
+  tokenIn: string,
+  tokenOut: string,
+  routerBuyingAdd: string,
+  routerSellingAdd: string
+) {
   // this function will take into account slippage and fees to calculate realistic profit
+  const routerBuying = new ethers.Contract(
+    routerBuyingAdd,
+    ROUTER_ABI,
+    provider
+  );
+
+  const amountIn = ethers.parseUnits(tradeSize.toString(), 18); // assuming 18 decimals for tokenIn
+  const amountsOut = await routerBuying.getAmountsOut(amountIn, [
+    tokenIn,
+    tokenOut,
+  ]);
+  const amountOut = amountsOut[1]; // amount of tokenOut received
+
+  // amountOut is the input for the selling router
+  const routerSelling = new ethers.Contract(
+    routerSellingAdd,
+    ROUTER_ABI,
+    provider
+  );
+  const amountsOutSelling = await routerSelling.getAmountsOut(amountOut, [
+    tokenOut,
+    tokenIn,
+  ]);
+  const finalAmountOut = amountsOutSelling[1]; // final amount of tokenIn received after selling
+
   // making sure to factor in trading fees and slippage for a more accurate profit calculation
+  // i basically know the amount i would be buying and then i would calculate the output amount based on that.
+  // calculations would be done using the getAmountOut formula from Uniswap and SushiSwap
+  const profit = finalAmountOut - amountIn;
+  // assuming the tokenA is the selling token
+  // tradeSize is in tokenA units
+  console.log("Profit:", ethers.formatUnits(profit, 18));
+  return profit;
+
+  // using the getAmountOut formula to calculate the output amount for tradeSize
 }
 
 async function findPerfectTradeSize() {
