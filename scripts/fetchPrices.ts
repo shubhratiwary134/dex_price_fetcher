@@ -107,6 +107,11 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
+async function calculateProfitWithGivenTradeSize() {
+  // this function will take into account slippage and fees to calculate realistic profit
+  // making sure to factor in trading fees and slippage for a more accurate profit calculation
+}
+
 async function main() {
   // here we will call the getPriceForPool function with the factory address
   const uniPrice = await getPriceForPool(UNISWAP_V2_FACTORY, WETH, DAI, WETH);
