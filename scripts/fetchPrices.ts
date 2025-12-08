@@ -4,6 +4,8 @@ import assert from "node:assert";
 
 const hardhatConfig = config.networks.hardhat;
 
+const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
+
 // 1. Narrow the type: Assert that this is the local simulated network
 // In Hardhat v3, the local network type is "edr-simulated"
 assert(
@@ -119,12 +121,15 @@ function calculateProfit(price1: number, price2: number): number {
 
 async function calculateProfitWithGivenTradeSize(
   tradeSize: number,
-  tokenIn: string,
-  tokenOut: string,
+  tokenIn: string, // selling token
+  tokenOut: string, // buying token
   routerBuyingAdd: string,
   routerSellingAdd: string
 ) {
   // this function will take into account slippage and fees to calculate realistic profit
+  console.log(
+    `flow is: buy tokenOut with tokenIn, then sell tokenOut for tokenIn`
+  );
   const routerBuying = new ethers.Contract(
     routerBuyingAdd,
     ROUTER_ABI,
@@ -153,11 +158,56 @@ async function calculateProfitWithGivenTradeSize(
   // making sure to factor in trading fees and slippage for a more accurate profit calculation
   // i basically know the amount i would be buying and then i would calculate the output amount based on that.
   // calculations would be done using the getAmountOut formula from Uniswap and SushiSwap
-  const profit = finalAmountOut - amountIn;
+
+  // -------------Estimate gas fees ---------------
+  const deadline = Math.floor(Date.now() / 1000) + 600;
+  const buyTx = await routerBuying.swapExactTokensForTokens.populateTransaction(
+    amountIn,
+    0,
+    [tokenIn, tokenOut],
+    walletAddress,
+    deadline
+  );
+
+  const sellTx =
+    await routerSelling.swapExactTokensForTokens.populateTransaction(
+      amountOut,
+      0,
+      [tokenOut, tokenIn],
+      walletAddress,
+      deadline
+    );
+
+  const gasBuy = await provider.estimateGas({
+    ...buyTx,
+    from: walletAddress,
+  });
+  const gasSell = await provider.estimateGas({
+    ...sellTx,
+    from: walletAddress,
+  });
+  const totalGas = gasBuy + gasSell;
+
+  const feeData = await provider.getFeeData();
+  const gasPrice =
+    feeData.gasPrice ?? feeData.maxFeePerGas ?? ethers.parseUnits("20", "gwei"); // fallback
+
+  const totalGasCostWei = totalGas * gasPrice;
+
+  const ethToTokenIn = await routerBuying.getAmountsOut(
+    ethers.parseEther("1"),
+    [WETH, tokenIn]
+  );
+  const tokenInPerEth = ethToTokenIn[1];
+
+  const gasCostTokenIn =
+    (totalGasCostWei * tokenInPerEth) / ethers.parseEther("1");
+
+  const netProfit = finalAmountOut - amountIn - gasCostTokenIn;
   // assuming the tokenA is the selling token
   // tradeSize is in tokenA units
-  console.log("Profit:", ethers.formatUnits(profit, 18));
-  return profit;
+  console.log("Profit:", ethers.formatUnits(netProfit, 18));
+  return netProfit;
 
   // using the getAmountOut formula to calculate the output amount for tradeSize
 }
