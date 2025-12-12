@@ -119,11 +119,18 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
-async function getProfitInUSD(
-  tokenIn: string,
-  profitInToken: number
-): Promise<number> {
-  return 10;
+async function getValueInUSD(tokenIn: string): Promise<number> {
+  // Design note -- i will first try the chainLink price feed method and if not available i will fallback to using DEX prices.
+
+  try {
+  } catch (error) {}
+
+  // Fallback to DEX prices
+
+  try {
+  } catch (error) {}
+
+  return 3; // placeholder
 }
 
 async function calculateProfitWithGivenTradeSize(
