@@ -119,6 +119,13 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
+async function getProfitInUSD(
+  tokenIn: string,
+  profitInToken: number
+): Promise<number> {
+  return 10;
+}
+
 async function calculateProfitWithGivenTradeSize(
   tradeSize: number,
   tokenIn: string, // selling token
