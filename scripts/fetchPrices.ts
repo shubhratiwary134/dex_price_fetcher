@@ -135,13 +135,22 @@ async function calculateProfitWithGivenTradeSize(
     ROUTER_ABI,
     provider
   );
+  const tokenInDecimals = await tokenDecimals(tokenIn);
+  const tokenOutDecimals = await tokenDecimals(tokenOut);
 
-  const amountIn = ethers.parseUnits(tradeSize.toString(), 18); // assuming 18 decimals for tokenIn
+  const amountIn = ethers.parseUnits(tradeSize.toString(), tokenInDecimals);
   const amountsOut = await routerBuying.getAmountsOut(amountIn, [
     tokenIn,
     tokenOut,
   ]);
   const amountOut = amountsOut[1]; // amount of tokenOut received
+
+  console.log(
+    `Buying ${ethers.formatUnits(
+      amountOut,
+      tokenOutDecimals
+    )} of tokenOut with ${tradeSize} of tokenIn`
+  );
 
   // amountOut is the input for the selling router
   const routerSelling = new ethers.Contract(
@@ -201,12 +210,12 @@ async function calculateProfitWithGivenTradeSize(
   const tokenInPerEth = ethToTokenIn[1];
 
   const gasCostTokenIn =
-    (totalGasCostWei * tokenInPerEth) / ethers.parseEther("1");
+    (totalGasCostWei * tokenInPerEth) / ethers.parseUnits("1", 18);
 
   const netProfit = finalAmountOut - amountIn - gasCostTokenIn;
   // assuming the tokenA is the selling token
   // tradeSize is in tokenA units
-  console.log("Profit:", ethers.formatUnits(netProfit, 18));
+  console.log("Profit:", ethers.formatUnits(netProfit, tokenInDecimals));
   return netProfit;
 
   // using the getAmountOut formula to calculate the output amount for tradeSize
@@ -214,6 +223,12 @@ async function calculateProfitWithGivenTradeSize(
 
 async function findPerfectTradeSize() {
   // this function will iterate over different trade sizes to find the optimal one
+}
+
+async function tokenDecimals(tokenAddress: string): Promise<number> {
+  const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+  const decimals = await tokenContract.decimals();
+  return decimals;
 }
 
 async function main() {
