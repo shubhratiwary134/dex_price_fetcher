@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { config } from "hardhat";
 import assert from "node:assert";
+import { CHAINLINK_FEED_MAP } from "../config/feed.js";
 
 const hardhatConfig = config.networks.hardhat;
 
@@ -32,7 +33,7 @@ const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
 // -----------TOKEN ADDRESSES -----------
 const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
-
+const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 // ------------ROUTER ADDRESSES ------------
 const UNISWAP_ROUTER = "0x7a250d5630B4c539739dF2C5dAcb4c659F2488D";
 const SUSHI_ROUTER = "0xd9e1CE17f2641F24aE83637AB66a2CCA9C378B9F";
@@ -59,6 +60,13 @@ const ERC20_ABI = [
 
 const ROUTER_ABI = [
   "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
+];
+
+export const PRICE_FEED_ABI = [
+  "function decimals() view returns (uint8)",
+  "function description() view returns (string)",
+  "function version() view returns (uint256)",
+  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
 ];
 
 // -----------Core Functions-----------
@@ -119,18 +127,47 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
-async function getValueInUSD(tokenIn: string): Promise<number> {
+async function getValueInUSD(tokenIn: string): Promise<number | null> {
   // Design note -- i will first try the chainLink price feed method and if not available i will fallback to using DEX prices.
 
   try {
-  } catch (error) {}
+    const chainlinkFeedAddress = CHAINLINK_FEED_MAP[tokenIn.toLowerCase()];
+    if (chainlinkFeedAddress) {
+      const feedContract = new ethers.Contract(
+        chainlinkFeedAddress,
+        PRICE_FEED_ABI,
+        provider
+      );
+      const decimals = await feedContract.decimals();
+      const latest = await feedContract.latestRoundData();
+      const answer = latest.answer;
+
+      const usdPrice = Number(ethers.formatUnits(answer, decimals));
+      return usdPrice;
+    }
+  } catch (error) {
+    console.log("Chainlink price feed fetch failed, trying DEX price...");
+  }
 
   // Fallback to DEX prices
-
   try {
-  } catch (error) {}
+    const router = new ethers.Contract(UNISWAP_ROUTER, ROUTER_ABI, provider);
+    const tokenInDecimals = await tokenDecimals(tokenIn);
 
-  return 3; // placeholder
+    const amountsOut = await router.getAmountsOut(
+      ethers.parseUnits("1", tokenInDecimals),
+      [tokenIn, USDC]
+    );
+    const amountOut = amountsOut[1]; // amount of USD received
+    const usdDecimals = await tokenDecimals(USDC);
+
+    const usdPrice = Number(ethers.formatUnits(amountOut, usdDecimals));
+    return usdPrice;
+  } catch (error) {
+    console.log("DEX-derived USD price unavailable.");
+  }
+
+  return null; // placeholder
 }
 
 async function calculateProfitWithGivenTradeSize(
