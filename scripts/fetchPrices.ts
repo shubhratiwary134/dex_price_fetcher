@@ -127,7 +127,11 @@ function calculateProfit(price1: number, price2: number): number {
   return profit;
 }
 
-async function getValueInUSD(tokenIn: string): Promise<number | null> {
+async function getValueInUSD(tokenIn: string): Promise<{
+  raw: bigint;
+  decimals: number;
+  formatted: string;
+} | null> {
   // Design note -- i will first try the chainLink price feed method and if not available i will fallback to using DEX prices.
 
   try {
@@ -138,12 +142,12 @@ async function getValueInUSD(tokenIn: string): Promise<number | null> {
         PRICE_FEED_ABI,
         provider
       );
-      const decimals = await feedContract.decimals();
       const latest = await feedContract.latestRoundData();
-      const answer = latest.answer;
+      const raw = latest.answer;
 
-      const usdPrice = Number(ethers.formatUnits(answer, decimals));
-      return usdPrice;
+      const decimals: number = await feedContract.decimals();
+      const formatted = ethers.formatUnits(raw, decimals);
+      return { raw, decimals, formatted };
     }
   } catch (error) {
     console.log("Chainlink price feed fetch failed, trying DEX price...");
@@ -158,11 +162,11 @@ async function getValueInUSD(tokenIn: string): Promise<number | null> {
       ethers.parseUnits("1", tokenInDecimals),
       [tokenIn, USDC]
     );
-    const amountOut = amountsOut[1]; // amount of USD received
-    const usdDecimals = await tokenDecimals(USDC);
+    const raw = amountsOut[1]; // amount of USD received
+    const decimals = 6; // USDC has 6 decimals
 
-    const usdPrice = Number(ethers.formatUnits(amountOut, usdDecimals));
-    return usdPrice;
+    const formatted = ethers.formatUnits(raw, decimals);
+    return { raw, decimals, formatted };
   } catch (error) {
     console.log("DEX-derived USD price unavailable.");
   }
@@ -263,10 +267,22 @@ async function calculateProfitWithGivenTradeSize(
   const gasCostTokenIn =
     (totalGasCostWei * tokenInPerEth) / ethers.parseUnits("1", 18);
 
-  const netProfit = finalAmountOut - amountIn - gasCostTokenIn;
+  const netProfit = finalAmountOut - amountIn - gasCostTokenIn; // in terms of tokenIn units
   // assuming the tokenA is the selling token
   // tradeSize is in tokenA units
   console.log("Profit:", ethers.formatUnits(netProfit, tokenInDecimals));
+
+  const priceTokenInUSD = await getValueInUSD(tokenIn);
+
+  const netProfitInUSD =
+    (netProfit * priceTokenInUSD!.raw) /
+    ethers.parseUnits("1", tokenInDecimals);
+
+  console.log(
+    "Profit in USD:",
+    ethers.formatUnits(netProfitInUSD, priceTokenInUSD!.decimals)
+  );
+
   return netProfit;
 
   // using the getAmountOut formula to calculate the output amount for tradeSize
