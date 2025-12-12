@@ -224,6 +224,12 @@ async function calculateProfitWithGivenTradeSize(
   // calculations would be done using the getAmountOut formula from Uniswap and SushiSwap
 
   // -------------Estimate gas fees ---------------
+
+  const fallbackGasValue = 180000n;
+
+  let gasBuy: bigint;
+  let gasSell: bigint;
+
   const deadline = Math.floor(Date.now() / 1000) + 600;
   const buyTx = await routerBuying.swapExactTokensForTokens.populateTransaction(
     amountIn,
@@ -242,14 +248,26 @@ async function calculateProfitWithGivenTradeSize(
       deadline
     );
 
-  const gasBuy = await provider.estimateGas({
-    ...buyTx,
-    from: walletAddress,
-  });
-  const gasSell = await provider.estimateGas({
-    ...sellTx,
-    from: walletAddress,
-  });
+  try {
+    gasBuy = await provider.estimateGas({
+      ...buyTx,
+      from: walletAddress,
+    });
+  } catch (error: any) {
+    console.warn("⚠️ Gas estimation failed for BUY leg:", error.message);
+    gasBuy = fallbackGasValue;
+  }
+
+  try {
+    gasSell = await provider.estimateGas({
+      ...sellTx,
+      from: walletAddress,
+    });
+  } catch (error: any) {
+    console.warn("⚠️ Gas estimation failed for SELL leg:", error.message);
+    gasSell = fallbackGasValue;
+  }
+
   const totalGas = gasBuy + gasSell;
 
   const feeData = await provider.getFeeData();
