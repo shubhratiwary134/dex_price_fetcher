@@ -1,19 +1,12 @@
 import { ethers } from "ethers";
-import { config } from "hardhat";
-import assert from "node:assert";
-import { CHAINLINK_FEED_MAP } from "../config/feed.js";
-import { DAI, USDC, WETH } from "../config/tokens.js";
-import { UNISWAP_ROUTER } from "../config/routers.js";
+
+import { DAI, WETH } from "../config/tokens.js";
 import { SUSHISWAP_FACTORY, UNISWAP_V2_FACTORY } from "../config/factories.js";
-import {
-  ERC20_ABI,
-  FACTORY_ABI,
-  PAIR_ABI,
-  PRICE_FEED_ABI,
-  ROUTER_ABI,
-} from "../config/abi.js";
+import { ERC20_ABI, FACTORY_ABI, PAIR_ABI, ROUTER_ABI } from "../config/abi.js";
 import { tokenDecimals } from "../services/tokenServices.js";
 import { getProvider } from "../services/providerServices.js";
+import { getValueInUSD } from "../helpers/conversionHelpers.js";
+import { calculateProfit } from "../helpers/profitHelpers.js";
 
 const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
@@ -62,66 +55,6 @@ async function getPriceForPool(
 }
 
 // -----------Helper-----------
-function calculateProfit(price1: number, price2: number): number {
-  const profit = Math.abs(price2 - price1);
-  if (price2 > price1) {
-    console.log(
-      `buy on exchange 1 at price ${price1} and sell on exchange 2 on price ${price2}`
-    );
-  } else {
-    console.log(
-      `buy on exchange 2 at price ${price2} and sell on exchange 1 on price ${price1}`
-    );
-  }
-  return profit;
-}
-
-async function getValueInUSD(tokenIn: string): Promise<{
-  raw: bigint;
-  decimals: number;
-  formatted: string;
-} | null> {
-  // Design note -- i will first try the chainLink price feed method and if not available i will fallback to using DEX prices.
-
-  try {
-    const chainlinkFeedAddress = CHAINLINK_FEED_MAP[tokenIn.toLowerCase()];
-    if (chainlinkFeedAddress) {
-      const feedContract = new ethers.Contract(
-        chainlinkFeedAddress,
-        PRICE_FEED_ABI,
-        provider
-      );
-      const latest = await feedContract.latestRoundData();
-      const raw = latest.answer;
-
-      const decimals: number = await feedContract.decimals();
-      const formatted = ethers.formatUnits(raw, decimals);
-      return { raw, decimals, formatted };
-    }
-  } catch (error) {
-    console.log("Chainlink price feed fetch failed, trying DEX price...");
-  }
-
-  // Fallback to DEX prices
-  try {
-    const router = new ethers.Contract(UNISWAP_ROUTER, ROUTER_ABI, provider);
-    const tokenInDecimals = await tokenDecimals(tokenIn);
-
-    const amountsOut = await router.getAmountsOut(
-      ethers.parseUnits("1", tokenInDecimals),
-      [tokenIn, USDC]
-    );
-    const raw = amountsOut[1]; // amount of USD received
-    const decimals = 6; // USDC has 6 decimals
-
-    const formatted = ethers.formatUnits(raw, decimals);
-    return { raw, decimals, formatted };
-  } catch (error) {
-    console.log("DEX-derived USD price unavailable.");
-  }
-
-  return null; // placeholder
-}
 
 async function simulateTrade(
   tradeSize: number,
@@ -253,10 +186,6 @@ async function simulateTrade(
   return netProfit;
 
   // using the getAmountOut formula to calculate the output amount for tradeSize
-}
-
-async function findPerfectTradeSize() {
-  // this function will iterate over different trade sizes to find the optimal one
 }
 
 async function main() {
