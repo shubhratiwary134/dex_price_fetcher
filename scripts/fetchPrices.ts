@@ -41,7 +41,6 @@ const MAINNET_RPC_URL =
 const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
 
 // -----------Core Functions-----------
-
 async function getPriceForPool(
   factoryAdd: string,
   tokenA: string,
@@ -145,7 +144,7 @@ async function getValueInUSD(tokenIn: string): Promise<{
   return null; // placeholder
 }
 
-async function calculateProfitWithGivenTradeSize(
+async function simulateTrade(
   tradeSize: number,
   tokenIn: string, // selling token
   tokenOut: string, // buying token
