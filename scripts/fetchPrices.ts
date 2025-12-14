@@ -70,6 +70,7 @@ async function simulateTrade(
   let gasSell: bigint;
 
   const deadline = Math.floor(Date.now() / 1000) + 600;
+
   const buyTx = await routerBuying.swapExactTokensForTokens.populateTransaction(
     amountIn,
     0,
