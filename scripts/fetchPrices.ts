@@ -2,6 +2,16 @@ import { ethers } from "ethers";
 import { config } from "hardhat";
 import assert from "node:assert";
 import { CHAINLINK_FEED_MAP } from "../config/feed.js";
+import { DAI, USDC, WETH } from "../config/tokens.js";
+import { UNISWAP_ROUTER } from "../config/routers.js";
+import { SUSHISWAP_FACTORY, UNISWAP_V2_FACTORY } from "../config/factories.js";
+import {
+  ERC20_ABI,
+  FACTORY_ABI,
+  PAIR_ABI,
+  PRICE_FEED_ABI,
+  ROUTER_ABI,
+} from "../config/abi.js";
 
 const hardhatConfig = config.networks.hardhat;
 
@@ -29,45 +39,6 @@ const MAINNET_RPC_URL =
     : forkingConfig.url;
 
 const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
-
-// -----------TOKEN ADDRESSES -----------
-const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
-const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-// ------------ROUTER ADDRESSES ------------
-const UNISWAP_ROUTER = "0x7a250d5630B4c539739dF2C5dAcb4c659F2488D";
-const SUSHI_ROUTER = "0xd9e1CE17f2641F24aE83637AB66a2CCA9C378B9F";
-
-// -----------FACTORY ADDRESSES -----------
-const UNISWAP_V2_FACTORY = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f";
-const SUSHISWAP_FACTORY = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac";
-
-// ABIs
-const FACTORY_ABI = [
-  "function getPair(address, address) external view returns (address)",
-];
-
-const PAIR_ABI = [
-  "function getReserves() view returns (uint112,uint112,uint32)",
-  "function token0() view returns (address)",
-  "function token1() view returns (address)",
-];
-
-const ERC20_ABI = [
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-];
-
-const ROUTER_ABI = [
-  "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
-];
-
-export const PRICE_FEED_ABI = [
-  "function decimals() view returns (uint8)",
-  "function description() view returns (string)",
-  "function version() view returns (uint256)",
-  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
-];
 
 // -----------Core Functions-----------
 
