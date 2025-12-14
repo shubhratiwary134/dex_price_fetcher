@@ -13,7 +13,7 @@ const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
 const provider = await getProvider();
 
-async function simulateTrade(
+export async function simulateTrade(
   tradeSize: number,
   tokenIn: string, // selling token
   tokenOut: string, // buying token
