@@ -12,33 +12,12 @@ import {
   PRICE_FEED_ABI,
   ROUTER_ABI,
 } from "../config/abi.js";
-
-const hardhatConfig = config.networks.hardhat;
+import { tokenDecimals } from "../services/tokenServices.js";
+import { getProvider } from "../services/providerServices.js";
 
 const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
-// 1. Narrow the type: Assert that this is the local simulated network
-// In Hardhat v3, the local network type is "edr-simulated"
-assert(
-  hardhatConfig.type === "edr-simulated",
-  "The 'hardhat' network is not defined or is not an 'edr-simulated' type"
-);
-
-// 2. Access 'forking' (TypeScript now knows it exists on this type)
-const forkingConfig = hardhatConfig.forking;
-
-if (!forkingConfig?.url) {
-  throw new Error("Forking is not configured in your hardhat.config.ts");
-}
-
-// 3. Retrieve the URL (handling both static strings and Config Variables)
-// Hardhat v3 config variables (like those from secrets) use .getUrl()
-const MAINNET_RPC_URL =
-  typeof forkingConfig.url === "object" && "getUrl" in forkingConfig.url
-    ? await forkingConfig.url.getUrl()
-    : forkingConfig.url;
-
-const provider = new ethers.JsonRpcProvider(MAINNET_RPC_URL);
+const provider = await getProvider();
 
 // -----------Core Functions-----------
 async function getPriceForPool(
@@ -278,12 +257,6 @@ async function simulateTrade(
 
 async function findPerfectTradeSize() {
   // this function will iterate over different trade sizes to find the optimal one
-}
-
-async function tokenDecimals(tokenAddress: string): Promise<number> {
-  const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  const decimals = await tokenContract.decimals();
-  return decimals;
 }
 
 async function main() {
