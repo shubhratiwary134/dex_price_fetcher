@@ -1,7 +1,6 @@
 import { ethers } from "ethers";
 import { simulateTrade } from "../scripts/fetchPrices.js";
 import { getValueInUSD } from "../services/conversionServices.js";
-import { tokenDecimals } from "../services/tokenServices.js";
 
 export type OptimizationPoints = {
   size: number;
@@ -27,7 +26,7 @@ async function findPerfectTradeSize(params: {
     size <= params.maxSize;
     size += params.stepSize
   ) {
-    const profitTokenRaw = await simulateTrade(
+    const profitToken = await simulateTrade(
       size,
       params.tokenIn,
       params.tokenOut,
@@ -35,12 +34,16 @@ async function findPerfectTradeSize(params: {
       params.routerSell
     );
 
-    const price = await getValueInUSD(params.tokenIn);
-    if (!price) continue;
+    const profitTokenRaw = profitToken.raw;
+    const profitUSD = profitToken.profitInUSD;
 
-    const profitUSD =
-      (profitTokenRaw * price.raw) /
-      ethers.parseUnits("1", await tokenDecimals(params.tokenIn));
+    const price = await getValueInUSD(params.tokenIn);
+    if (!price) {
+      console.log(
+        `Unable to fetch USD price for tokenIn: ${params.tokenIn}, skipping size ${size}`
+      );
+      continue;
+    }
 
     const point: OptimizationPoints = {
       size,

@@ -13,13 +13,18 @@ const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
 const provider = await getProvider();
 
+type profitType = {
+  raw: bigint;
+  profitInUSD: bigint;
+};
+
 export async function simulateTrade(
   tradeSize: number,
   tokenIn: string, // selling token
   tokenOut: string, // buying token
   routerBuyingAdd: string,
   routerSellingAdd: string
-) {
+): Promise<profitType> {
   // this function will take into account slippage and fees to calculate realistic profit
   console.log(
     `flow is: buy tokenOut with tokenIn, then sell tokenOut for tokenIn`
@@ -141,7 +146,10 @@ export async function simulateTrade(
     ethers.formatUnits(netProfitInUSD, priceTokenInUSD!.decimals)
   );
 
-  return netProfit;
+  return {
+    raw: netProfit,
+    profitInUSD: netProfitInUSD,
+  };
 
   // using the getAmountOut formula to calculate the output amount for tradeSize
 }
