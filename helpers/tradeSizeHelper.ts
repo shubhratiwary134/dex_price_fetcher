@@ -37,26 +37,17 @@ async function findPerfectTradeSize(params: {
     const profitTokenRaw = profitToken.raw;
     const profitUSD = profitToken.profitInUSD;
 
-    const price = await getValueInUSD(params.tokenIn);
-    if (!price) {
-      console.log(
-        `Unable to fetch USD price for tokenIn: ${params.tokenIn}, skipping size ${size}`
-      );
-      continue;
-    }
-
     const point: OptimizationPoints = {
       size,
       profitTokenRaw: profitTokenRaw,
-      profitUSD: ethers.formatUnits(profitUSD, price.decimals),
+      profitUSD: ethers.formatUnits(profitUSD, 6),
     };
 
     results.push(point);
 
     if (
       !bestResult ||
-      BigInt(profitUSD) >
-        BigInt(ethers.parseUnits(bestResult.profitUSD, price.decimals))
+      BigInt(profitUSD) > BigInt(ethers.parseUnits(bestResult.profitUSD, 6))
     ) {
       bestResult = point;
     }
