@@ -3,6 +3,7 @@ import { simulateTrade } from "./fetchPrices.js";
 import { TOKEN_MAP } from "../config/tokens.js";
 import { ROUTER_MAP } from "../config/routers.js";
 import { CliArgs, RawCliArgs } from "../type/cliTypes.js";
+import { findPerfectTradeSize } from "../helpers/tradeSizeHelper.js";
 
 function parseArgs(): RawCliArgs {
   const args = process.argv.slice(2);
@@ -43,6 +44,38 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       tradeSize,
     };
   }
+  if (raw.mode === "optimize") {
+    if (!raw.tokenIn) throw new Error("tokenIn is required");
+    if (!raw.tokenOut) throw new Error("tokenOut is required");
+    if (!raw.routerBuy) throw new Error("routerBuy is required");
+    if (!raw.routerSell) throw new Error("routerSell is required");
+    if (!raw.minSize) throw new Error("minSize is required");
+    if (!raw.maxSize) throw new Error("maxSize is required");
+    if (!raw.stepSize) throw new Error("stepSize is required");
+
+    const minSize = Number(raw.minSize);
+    const maxSize = Number(raw.maxSize);
+    const stepSize = Number(raw.stepSize);
+
+    if (minSize <= 0 || maxSize <= 0 || stepSize <= 0) {
+      throw new Error("minSize, maxSize, stepSize must be positive numbers");
+    }
+
+    if (minSize >= maxSize) {
+      throw new Error("minSize must be < maxSize");
+    }
+
+    return {
+      mode: "optimize",
+      tokenIn: raw.tokenIn,
+      tokenOut: raw.tokenOut,
+      routerBuy: raw.routerBuy,
+      routerSell: raw.routerSell,
+      minSize,
+      maxSize,
+      stepSize,
+    };
+  }
 
   throw new Error(`Unsupported mode: ${raw.mode}`);
 }
@@ -75,6 +108,36 @@ async function main() {
       routerBuy,
       routerSell
     );
+
+    return;
+  } else if (args.mode === "optimize") {
+    // Optimization mode not implemented in this snippet
+    const tokenIn = resolveAddress(TOKEN_MAP, args.tokenIn);
+    const tokenOut = resolveAddress(TOKEN_MAP, args.tokenOut);
+    const routerBuy = resolveAddress(ROUTER_MAP, args.routerBuy);
+    const routerSell = resolveAddress(ROUTER_MAP, args.routerSell);
+
+    const { results, bestResult } = await findPerfectTradeSize({
+      tokenIn,
+      tokenOut,
+      routerBuy,
+      routerSell,
+      minSize: args.minSize,
+      maxSize: args.maxSize,
+      stepSize: args.stepSize,
+    });
+
+    console.log("\nTrade Size → Profit (USD)");
+    console.log("--------------------------");
+
+    for (const point of results) {
+      console.log(`${point.size}\t→\t$${point.profitUSD}`);
+    }
+
+    if (bestResult) {
+      console.log("\nOptimal Trade Size:");
+      console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+    }
 
     return;
   }

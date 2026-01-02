@@ -8,7 +8,7 @@ export type OptimizationPoints = {
   profitUSD: string;
 };
 
-async function findPerfectTradeSize(params: {
+export async function findPerfectTradeSize(params: {
   tokenIn: string;
   tokenOut: string;
   routerBuy: string;

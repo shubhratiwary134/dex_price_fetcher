@@ -4,11 +4,26 @@ export type cliMode = "simulate" | "optimize" | "price" | "monitor";
 
 export type RawCliArgs = {
   mode?: string;
+
+  // shared
   tokenIn?: string;
   tokenOut?: string;
   routerBuy?: string;
   routerSell?: string;
+
+  // simulate
   tradeSize?: string;
+
+  // optimize
+  minSize?: string;
+  maxSize?: string;
+  stepSize?: string;
+
+  // price
+  token?: string;
+
+  // monitor
+  interval?: string;
 };
 
 export type SimulateArgs = {
