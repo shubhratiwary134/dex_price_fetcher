@@ -52,10 +52,12 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
     if (!raw.minSize) throw new Error("minSize is required");
     if (!raw.maxSize) throw new Error("maxSize is required");
     if (!raw.stepSize) throw new Error("stepSize is required");
+    if (!raw.curve) raw.curve = "false";
 
     const minSize = Number(raw.minSize);
     const maxSize = Number(raw.maxSize);
     const stepSize = Number(raw.stepSize);
+    const curve = Boolean(raw.curve);
 
     if (minSize <= 0 || maxSize <= 0 || stepSize <= 0) {
       throw new Error("minSize, maxSize, stepSize must be positive numbers");
@@ -74,6 +76,7 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       minSize,
       maxSize,
       stepSize,
+      curve,
     };
   }
 
@@ -126,6 +129,12 @@ async function main() {
       maxSize: args.maxSize,
       stepSize: args.stepSize,
     });
+
+    if (args.curve) {
+      // Plotting logic would go here
+      console.log("Curve plotting is not implemented in this snippet.");
+      return;
+    }
 
     console.log("\nTrade Size → Profit (USD)");
     console.log("--------------------------");

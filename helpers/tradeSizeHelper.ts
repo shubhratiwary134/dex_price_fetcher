@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
 import { simulateTrade } from "../scripts/fetchPrices.js";
-import { getValueInUSD } from "../services/conversionServices.js";
 
 export type OptimizationPoints = {
   size: number;

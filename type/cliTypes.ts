@@ -18,6 +18,7 @@ export type RawCliArgs = {
   minSize?: string;
   maxSize?: string;
   stepSize?: string;
+  curve?: string;
 
   // price
   token?: string;
@@ -44,6 +45,7 @@ export type OptimizeArgs = {
   minSize: number;
   maxSize: number;
   stepSize: number;
+  curve: boolean | false;
 };
 
 export type PriceArgs = {
