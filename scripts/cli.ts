@@ -5,6 +5,7 @@ import { ROUTER_MAP } from "../config/routers.js";
 import { CliArgs, RawCliArgs } from "../type/cliTypes.js";
 import { findPerfectTradeSize } from "../helpers/tradeSizeHelper.js";
 import { plotCurveHelper } from "../helpers/plotCurveHelper.js";
+import { getValueInUSD } from "../services/conversionServices.js";
 
 function parseArgs(): RawCliArgs {
   const args = process.argv.slice(2);
@@ -45,6 +46,7 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       tradeSize,
     };
   }
+
   if (raw.mode === "optimize") {
     if (!raw.tokenIn) throw new Error("tokenIn is required");
     if (!raw.tokenOut) throw new Error("tokenOut is required");
@@ -78,6 +80,14 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       maxSize,
       stepSize,
       curve,
+    };
+  }
+
+  if (raw.mode === "price") {
+    if (!raw.token) throw new Error("token is required");
+    return {
+      mode: "price",
+      token: raw.token,
     };
   }
 
@@ -145,6 +155,17 @@ async function main() {
       console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
     }
 
+    return;
+  } else if (args.mode === "price") {
+    const token = resolveAddress(TOKEN_MAP, args.token);
+    const valueInUSD = await getValueInUSD(token);
+
+    console.log("========================");
+    if (valueInUSD) {
+      console.log(
+        `price of one unit of token ${args.token} in USD: $${valueInUSD.formatted}`
+      );
+    }
     return;
   }
 }
