@@ -4,6 +4,7 @@ import { TOKEN_MAP } from "../config/tokens.js";
 import { ROUTER_MAP } from "../config/routers.js";
 import { CliArgs, RawCliArgs } from "../type/cliTypes.js";
 import { findPerfectTradeSize } from "../helpers/tradeSizeHelper.js";
+import { plotCurveHelper } from "../helpers/plotCurveHelper.js";
 
 function parseArgs(): RawCliArgs {
   const args = process.argv.slice(2);
@@ -132,15 +133,12 @@ async function main() {
 
     if (args.curve) {
       // Plotting logic would go here
-      console.log("Curve plotting is not implemented in this snippet.");
-      return;
-    }
+      const plottingData = results.map((point) => ({
+        size: point.size,
+        profitUSD: Number(point.profitUSD),
+      }));
 
-    console.log("\nTrade Size → Profit (USD)");
-    console.log("--------------------------");
-
-    for (const point of results) {
-      console.log(`${point.size}\t→\t$${point.profitUSD}`);
+      plotCurveHelper({ plottingData });
     }
 
     if (bestResult) {
