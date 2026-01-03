@@ -1,9 +1,14 @@
 import Chartscii from "chartscii";
+import { ChartColor, ChartTheme } from "../type/cliTypes.js";
 
 export function plotCurveHelper({
   plottingData,
+  theme,
+  color,
 }: {
   plottingData: { size: number; profitUSD: number }[];
+  theme?: ChartTheme;
+  color?: ChartColor;
 }) {
   const chartPoints = plottingData.map((p) => ({
     label: String(p.size),
@@ -14,8 +19,8 @@ export function plotCurveHelper({
     title: "Profit Curve",
     width: 80,
     height: 20,
-    theme: "pastel",
-    color: "pink",
+    theme: theme || "pastel",
+    color: color || "pink",
     // show labels if you want them
     colorLabels: true,
     valueLabels: true,

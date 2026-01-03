@@ -115,7 +115,6 @@ async function main() {
 
     return;
   } else if (args.mode === "optimize") {
-    // Optimization mode not implemented in this snippet
     const tokenIn = resolveAddress(TOKEN_MAP, args.tokenIn);
     const tokenOut = resolveAddress(TOKEN_MAP, args.tokenOut);
     const routerBuy = resolveAddress(ROUTER_MAP, args.routerBuy);

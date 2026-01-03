@@ -2,6 +2,10 @@ export type CliArgs = SimulateArgs | OptimizeArgs | PriceArgs | MonitorArgs;
 
 export type cliMode = "simulate" | "optimize" | "price" | "monitor";
 
+export type ChartTheme = "pastel" | "dark" | "light";
+
+export type ChartColor = "pink" | "blue" | "green" | "red";
+
 export type RawCliArgs = {
   mode?: string;
 
