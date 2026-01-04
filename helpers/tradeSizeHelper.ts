@@ -15,6 +15,7 @@ export async function findPerfectTradeSize(params: {
   minSize: number;
   maxSize: number;
   stepSize: number;
+  slippageBps?: number;
 }) {
   // this function will iterate over different trade sizes to find the optimal one
   const results: OptimizationPoints[] = [];
@@ -30,7 +31,8 @@ export async function findPerfectTradeSize(params: {
       params.tokenIn,
       params.tokenOut,
       params.routerBuy,
-      params.routerSell
+      params.routerSell,
+      params.slippageBps
     );
 
     const profitTokenRaw = profitToken.raw;

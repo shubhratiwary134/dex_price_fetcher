@@ -155,6 +155,7 @@ async function main() {
         minSize: args.minSize,
         maxSize: args.maxSize,
         stepSize: args.stepSize,
+        slippageBps: slippage,
       });
 
       for (const r of results) {

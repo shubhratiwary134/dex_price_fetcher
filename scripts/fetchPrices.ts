@@ -20,7 +20,8 @@ export async function simulateTrade(
   tokenIn: string, // selling token
   tokenOut: string, // buying token
   routerBuyingAdd: string,
-  routerSellingAdd: string
+  routerSellingAdd: string,
+  slippageBps?: number
 ): Promise<profitType> {
   // this function will take into account slippage and fees to calculate realistic profit
   console.log(
