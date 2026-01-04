@@ -23,6 +23,7 @@ export type RawCliArgs = {
   maxSize?: string;
   stepSize?: string;
   curve?: string;
+  slippageBps?: string; // taking comma separated values for slippage bps in the cli
 
   // price
   token?: string;
@@ -50,6 +51,7 @@ export type OptimizeArgs = {
   maxSize: number;
   stepSize: number;
   curve: boolean | false;
+  slippageBps?: number[];
 };
 
 export type PriceArgs = {

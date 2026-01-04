@@ -70,6 +70,18 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       throw new Error("minSize must be < maxSize");
     }
 
+    let slippageBps: number[] | undefined;
+
+    if (raw.slippageBps) {
+      slippageBps = raw.slippageBps.split(",").map((v) => {
+        const n = Number(v);
+        if (Number.isNaN(n) || n < 0) {
+          throw new Error("slippageBps must be non-negative numbers");
+        }
+        return n;
+      });
+    }
+
     return {
       mode: "optimize",
       tokenIn: raw.tokenIn,
@@ -80,6 +92,7 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       maxSize,
       stepSize,
       curve,
+      slippageBps,
     };
   }
 
@@ -130,29 +143,38 @@ async function main() {
     const routerBuy = resolveAddress(ROUTER_MAP, args.routerBuy);
     const routerSell = resolveAddress(ROUTER_MAP, args.routerSell);
 
-    const { results, bestResult } = await findPerfectTradeSize({
-      tokenIn,
-      tokenOut,
-      routerBuy,
-      routerSell,
-      minSize: args.minSize,
-      maxSize: args.maxSize,
-      stepSize: args.stepSize,
-    });
+    const slippageInfo = args.slippageBps ?? [0];
 
-    if (args.curve) {
-      // Plotting logic would go here
-      const plottingData = results.map((point) => ({
-        size: point.size,
-        profitUSD: Number(point.profitUSD),
-      }));
+    for (const slippage of slippageInfo) {
+      // we find the perfect trade size for each slippage value provided
+      const { results, bestResult } = await findPerfectTradeSize({
+        tokenIn,
+        tokenOut,
+        routerBuy,
+        routerSell,
+        minSize: args.minSize,
+        maxSize: args.maxSize,
+        stepSize: args.stepSize,
+      });
 
-      plotCurveHelper({ plottingData });
-    }
+      for (const r of results) {
+        console.log(`${r.size} → $${r.profitUSD}`);
+      }
 
-    if (bestResult) {
-      console.log("\nOptimal Trade Size:");
-      console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+      if (args.curve) {
+        // Plotting logic would go here
+        const plottingData = results.map((point) => ({
+          size: point.size,
+          profitUSD: Number(point.profitUSD),
+        }));
+
+        plotCurveHelper({ plottingData });
+      }
+
+      if (bestResult) {
+        console.log(`\nOptimal Trade Size for ${slippage} bps :`);
+        console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+      }
     }
 
     return;

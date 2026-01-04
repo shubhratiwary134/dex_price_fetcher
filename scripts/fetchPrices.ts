@@ -1,13 +1,10 @@
 import { ethers } from "ethers";
 
 import { DAI, WETH } from "../config/tokens.js";
-import { SUSHISWAP_FACTORY, UNISWAP_V2_FACTORY } from "../config/factories.js";
 import { ROUTER_ABI } from "../config/abi.js";
 import { tokenDecimals } from "../services/tokenServices.js";
 import { getProvider } from "../services/providerServices.js";
-import { calculateProfit } from "../helpers/profitHelpers.js";
 import { getValueInUSD } from "../services/conversionServices.js";
-import { getPriceForPool } from "../services/priceServices.js";
 
 const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
