@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
-
-import { DAI, WETH } from "../config/tokens.js";
+import { WETH } from "../config/tokens.js";
 import { ROUTER_ABI } from "../config/abi.js";
 import { tokenDecimals } from "../services/tokenServices.js";
 import { getProvider } from "../services/providerServices.js";
@@ -14,6 +13,13 @@ type profitType = {
   raw: bigint;
   profitInUSD: bigint;
 };
+
+function applySlippage(amount: bigint, slippageBps?: number): bigint {
+  if (!slippageBps || slippageBps <= 0) return amount;
+
+  const factor = 10_000n - BigInt(slippageBps);
+  return (amount * factor) / 10_000n;
+}
 
 export async function simulateTrade(
   tradeSize: number,
@@ -40,7 +46,8 @@ export async function simulateTrade(
     tokenIn,
     tokenOut,
   ]);
-  const amountOut = amountsOut[1]; // amount of tokenOut received
+  const prevAmountOut = amountsOut[1]; // amount of tokenOut received
+  const amountOut = applySlippage(prevAmountOut, slippageBps);
 
   console.log(
     `Buying ${ethers.formatUnits(
@@ -59,7 +66,8 @@ export async function simulateTrade(
     tokenOut,
     tokenIn,
   ]);
-  const finalAmountOut = amountsOutSelling[1]; // final amount of tokenIn received after selling
+  const quotedFinalAmountOut = amountsOutSelling[1]; // final amount of tokenIn received after selling
+  const finalAmountOut = applySlippage(quotedFinalAmountOut, slippageBps);
 
   // making sure to factor in trading fees and slippage for a more accurate profit calculation
   // i basically know the amount i would be buying and then i would calculate the output amount based on that.
