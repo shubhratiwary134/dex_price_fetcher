@@ -72,11 +72,23 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
 
     let slippageBps: number[] | undefined;
 
+    let gasGwei: number[] | undefined;
+
     if (raw.slippageBps) {
       slippageBps = raw.slippageBps.split(",").map((v) => {
         const n = Number(v);
         if (Number.isNaN(n) || n < 0) {
           throw new Error("slippageBps must be non-negative numbers");
+        }
+        return n;
+      });
+    }
+
+    if (raw.gasGwei) {
+      gasGwei = raw.gasGwei.split(",").map((v) => {
+        const n = Number(v);
+        if (Number.isNaN(n) || n < 0) {
+          throw new Error("gasGwei must be non-negative numbers");
         }
         return n;
       });
@@ -93,6 +105,7 @@ function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       stepSize,
       curve,
       slippageBps,
+      gasGwei,
     };
   }
 
@@ -145,36 +158,41 @@ async function main() {
 
     const slippageInfo = args.slippageBps ?? [0];
 
+    const gasGweiInfo = args.gasGwei ?? [0];
+
     for (const slippage of slippageInfo) {
-      // we find the perfect trade size for each slippage value provided
-      const { results, bestResult } = await findPerfectTradeSize({
-        tokenIn,
-        tokenOut,
-        routerBuy,
-        routerSell,
-        minSize: args.minSize,
-        maxSize: args.maxSize,
-        stepSize: args.stepSize,
-        slippageBps: slippage,
-      });
+      for (const gasGwei of gasGweiInfo) {
+        // we find the perfect trade size for each slippage value provided
+        const { results, bestResult } = await findPerfectTradeSize({
+          tokenIn,
+          tokenOut,
+          routerBuy,
+          routerSell,
+          minSize: args.minSize,
+          maxSize: args.maxSize,
+          stepSize: args.stepSize,
+          slippageBps: slippage,
+          gasGwei,
+        });
 
-      for (const r of results) {
-        console.log(`${r.size} → $${r.profitUSD}`);
-      }
+        for (const r of results) {
+          console.log(`${r.size} → $${r.profitUSD}`);
+        }
 
-      if (args.curve) {
-        // Plotting logic would go here
-        const plottingData = results.map((point) => ({
-          size: point.size,
-          profitUSD: Number(point.profitUSD),
-        }));
+        if (args.curve) {
+          // Plotting logic would go here
+          const plottingData = results.map((point) => ({
+            size: point.size,
+            profitUSD: Number(point.profitUSD),
+          }));
 
-        plotCurveHelper({ plottingData });
-      }
+          plotCurveHelper({ plottingData });
+        }
 
-      if (bestResult) {
-        console.log(`\nOptimal Trade Size for ${slippage} bps :`);
-        console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+        if (bestResult) {
+          console.log(`\nOptimal Trade Size for ${slippage} bps :`);
+          console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+        }
       }
     }
 

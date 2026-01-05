@@ -27,7 +27,8 @@ export async function simulateTrade(
   tokenOut: string, // buying token
   routerBuyingAdd: string,
   routerSellingAdd: string,
-  slippageBps?: number
+  slippageBps?: number,
+  gasGwei?: number
 ): Promise<profitType> {
   // this function will take into account slippage and fees to calculate realistic profit
   console.log(
@@ -121,9 +122,17 @@ export async function simulateTrade(
 
   const totalGas = gasBuy + gasSell;
 
-  const feeData = await provider.getFeeData();
-  const gasPrice =
-    feeData.gasPrice ?? feeData.maxFeePerGas ?? ethers.parseUnits("20", "gwei"); // fallback
+  let gasPrice: bigint;
+
+  if (gasGwei !== undefined) {
+    gasPrice = ethers.parseUnits(gasGwei.toString(), "gwei");
+  } else {
+    const feeData = await provider.getFeeData();
+    gasPrice =
+      feeData.gasPrice ??
+      feeData.maxFeePerGas ??
+      ethers.parseUnits("20", "gwei");
+  }
 
   const totalGasCostWei = totalGas * gasPrice;
 

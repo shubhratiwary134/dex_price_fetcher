@@ -24,6 +24,7 @@ export type RawCliArgs = {
   stepSize?: string;
   curve?: string;
   slippageBps?: string; // taking comma separated values for slippage bps in the cli
+  gasGwei?: string; // taking comma separated values for gas gwei for a gas sensitivity analysis
 
   // price
   token?: string;
@@ -52,6 +53,7 @@ export type OptimizeArgs = {
   stepSize: number;
   curve: boolean | false;
   slippageBps?: number[];
+  gasGwei?: number[];
 };
 
 export type PriceArgs = {
