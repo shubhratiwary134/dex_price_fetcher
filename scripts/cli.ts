@@ -9,6 +9,7 @@ import {
   parseArgs,
   resolveAddress,
 } from "../helpers/validationHelper.js";
+import { BreakEven } from "../type/analysisTypes.js";
 
 async function main() {
   const rawArgs = parseArgs();
@@ -39,6 +40,8 @@ async function main() {
 
     const gasGweiInfo = args.gasGwei ?? [0];
 
+    const breakEvens: BreakEven[] = [];
+
     for (const slippage of slippageInfo) {
       for (const gasGwei of gasGweiInfo) {
         // we find the perfect trade size for each slippage value provided
@@ -59,12 +62,12 @@ async function main() {
           const currProfit = Number(results[i].profitUSD);
 
           if (prevProfit < 0 && currProfit >= 0) {
-            console.log(
-              `\n📍 Break-even range for ${slippage} bps and ${gasGwei} gwei:`
-            );
-            console.log(
-              `→ Between ${results[i - 1].size} and ${results[i].size}`
-            );
+            breakEvens.push({
+              slippage,
+              gasGwei: gasGwei,
+              fromSize: results[i - 1].size,
+              toSize: results[i].size,
+            });
             break;
           }
         }
@@ -84,6 +87,17 @@ async function main() {
           console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
         }
       }
+    }
+
+    console.log("\n📍 Break-even Summary");
+    console.log("--------------------");
+
+    for (const breakEven of breakEvens) {
+      console.log(
+        `Slippage ${breakEven.slippage} bps | Gas ${
+          breakEven.gasGwei ?? "live"
+        } gwei → ` + `between ${breakEven.fromSize} and ${breakEven.toSize}`
+      );
     }
 
     return;
