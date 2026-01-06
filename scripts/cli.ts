@@ -1,4 +1,3 @@
-import { ethers } from "ethers";
 import { simulateTrade } from "./fetchPrices.js";
 import { TOKEN_MAP } from "../config/tokens.js";
 import { ROUTER_MAP } from "../config/routers.js";
@@ -55,8 +54,19 @@ async function main() {
           gasGwei,
         });
 
-        for (const r of results) {
-          console.log(`${r.size} → $${r.profitUSD}`);
+        for (let i = 1; i < results.length; i++) {
+          const prevProfit = Number(results[i - 1].profitUSD);
+          const currProfit = Number(results[i].profitUSD);
+
+          if (prevProfit < 0 && currProfit >= 0) {
+            console.log(
+              `\n📍 Break-even range for ${slippage} bps and ${gasGwei} gwei:`
+            );
+            console.log(
+              `→ Between ${results[i - 1].size} and ${results[i].size}`
+            );
+            break;
+          }
         }
 
         if (args.curve) {
