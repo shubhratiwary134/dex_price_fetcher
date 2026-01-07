@@ -100,6 +100,12 @@ async function main() {
       );
     }
 
+    const totalBreakEvens = breakEvens.length;
+    const totalWorlds = slippageInfo.length * gasGweiInfo.length;
+    console.log(
+      `\n Viable in ${totalBreakEvens} / ${totalWorlds} execution environments`
+    );
+
     return;
   } else if (args.mode === "price") {
     const token = resolveAddress(TOKEN_MAP, args.token);
