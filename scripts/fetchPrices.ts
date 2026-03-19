@@ -1,13 +1,14 @@
 import { ethers } from "ethers";
-import { WETH } from "../config/tokens.js";
-import { ROUTER_ABI } from "../config/abi.js";
-import { tokenDecimals } from "../services/tokenServices.js";
 import { getProvider } from "../services/providerServices.js";
+import { ERC20_ABI, ROUTER_ABI } from "../config/abi.js";
+import { tokenDecimals } from "../services/tokenServices.js";
+import { WETH } from "../config/tokens.js";
 import { getValueInUSD } from "../services/conversionServices.js";
 
-const walletAddress = process.env.PUBLIC_WALLET_ADDRESS;
 
 const provider = await getProvider();
+
+const whaleAddress = "0x06920c9fc643de77b99cb7670a944ad31eaaa260";
 
 type profitType = {
   raw: bigint;
@@ -34,19 +35,65 @@ export async function simulateTrade(
   console.log(
     `flow is: buy tokenOut with tokenIn, then sell tokenOut for tokenIn`
   );
+
+  // ------------------ IMPERSONATE ------------------
+  // Using a whale account so that simulation does not fail due to insufficient balance
+  await provider.send("hardhat_impersonateAccount", [whaleAddress]);
+
+  const whaleSigner = await provider.getSigner(whaleAddress);
+
+  // Give ETH for gas so transactions don’t revert during estimation
+  await provider.send("hardhat_setBalance", [
+    whaleAddress,
+    "0x1000000000000000000", // ~18 ETH
+  ]);
+
+  // ------------------ READ CONTRACTS ------------------
   const routerBuying = new ethers.Contract(
     routerBuyingAdd,
     ROUTER_ABI,
     provider
   );
+
+
+  // ------------------ WRITE CONTRACTS ------------------
+  // signer is required for simulating real execution (gas estimation, approvals, etc.)
+  const routerBuyingWithSigner = routerBuying.connect(whaleSigner) as any;
+
+  const tokenInContract = new ethers.Contract(
+    tokenIn,
+    ERC20_ABI,
+    whaleSigner
+  );
+
+  const tokenOutContract = new ethers.Contract(
+    tokenOut,
+    ERC20_ABI,
+    whaleSigner
+  );
+
+  // ------------------ DECIMALS ------------------
   const tokenInDecimals = await tokenDecimals(tokenIn);
   const tokenOutDecimals = await tokenDecimals(tokenOut);
 
   const amountIn = ethers.parseUnits(tradeSize.toString(), tokenInDecimals);
+
+  // ------------------ APPROVALS ------------------
+  // approvals are required otherwise gas estimation / swaps will revert
+  const allowanceIn = await tokenInContract.allowance(whaleAddress, routerBuyingAdd);
+
+  if (allowanceIn < amountIn) {
+  await tokenInContract.approve(routerBuyingAdd, ethers.MaxUint256);
+  }
+
+  await tokenOutContract.approve(routerSellingAdd, ethers.MaxUint256);
+
+  // ------------------ BUY LEG (READ) ------------------
   const amountsOut = await routerBuying.getAmountsOut(amountIn, [
     tokenIn,
     tokenOut,
   ]);
+  
   const prevAmountOut = amountsOut[1]; // amount of tokenOut received
   const amountOut = applySlippage(prevAmountOut, slippageBps);
 
@@ -58,17 +105,26 @@ export async function simulateTrade(
   );
 
   // amountOut is the input for the selling router
+  // ------------------ SELL LEG (READ) ------------------
+  
   const routerSelling = new ethers.Contract(
     routerSellingAdd,
     ROUTER_ABI,
     provider
   );
+
+  const routerSellingWithSigner = routerSelling.connect(whaleSigner) as any;
+
   const amountsOutSelling = await routerSelling.getAmountsOut(amountOut, [
     tokenOut,
     tokenIn,
   ]);
+
   const quotedFinalAmountOut = amountsOutSelling[1]; // final amount of tokenIn received after selling
-  const finalAmountOut = applySlippage(quotedFinalAmountOut, slippageBps);
+  const finalAmountOut = applySlippage(
+    quotedFinalAmountOut,
+    slippageBps
+  );
 
   // making sure to factor in trading fees and slippage for a more accurate profit calculation
   // i basically know the amount i would be buying and then i would calculate the output amount based on that.
@@ -83,27 +139,28 @@ export async function simulateTrade(
 
   const deadline = Math.floor(Date.now() / 1000) + 600;
 
-  const buyTx = await routerBuying.swapExactTokensForTokens.populateTransaction(
-    amountIn,
-    0,
-    [tokenIn, tokenOut],
-    walletAddress,
-    deadline
-  );
+  const buyTx =
+    await routerBuyingWithSigner.swapExactTokensForTokens.populateTransaction(
+      amountIn,
+      0,
+      [tokenIn, tokenOut],
+      whaleAddress,
+      deadline
+    );
 
   const sellTx =
-    await routerSelling.swapExactTokensForTokens.populateTransaction(
+    await routerSellingWithSigner.swapExactTokensForTokens.populateTransaction(
       amountOut,
       0,
       [tokenOut, tokenIn],
-      walletAddress,
+      whaleAddress,
       deadline
     );
 
   try {
     gasBuy = await provider.estimateGas({
       ...buyTx,
-      from: walletAddress,
+      from: whaleAddress,
     });
   } catch (error: any) {
     console.warn("⚠️ Gas estimation failed for BUY leg:", error.message);
@@ -113,7 +170,7 @@ export async function simulateTrade(
   try {
     gasSell = await provider.estimateGas({
       ...sellTx,
-      from: walletAddress,
+      from: whaleAddress,
     });
   } catch (error: any) {
     console.warn("⚠️ Gas estimation failed for SELL leg:", error.message);
@@ -136,18 +193,22 @@ export async function simulateTrade(
 
   const totalGasCostWei = totalGas * gasPrice;
 
+  // ------------------ GAS → TOKEN ------------------
   const ethToTokenIn = await routerBuying.getAmountsOut(
     ethers.parseEther("1"),
     [WETH, tokenIn]
   );
+
   const tokenInPerEth = ethToTokenIn[1];
 
   const gasCostTokenIn =
-    (totalGasCostWei * tokenInPerEth) / ethers.parseUnits("1", 18);
+    (totalGasCostWei * tokenInPerEth) / ethers.parseEther("1");
 
+  // ------------------ PROFIT ------------------
   const netProfit = finalAmountOut - amountIn - gasCostTokenIn; // in terms of tokenIn units
   // assuming the tokenA is the selling token
   // tradeSize is in tokenA units
+
   console.log("Profit:", ethers.formatUnits(netProfit, tokenInDecimals));
 
   const priceTokenInUSD = await getValueInUSD(tokenIn);
