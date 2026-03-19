@@ -70,7 +70,7 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
 
     if (raw.slippageBps) {
       slippageBps = raw.slippageBps.split(",").map((v) => {
-        const n = Number(v);
+        const n = Number(v.trim());
         if (Number.isNaN(n) || n < 0) {
           throw new Error("slippageBps must be non-negative numbers");
         }
@@ -80,7 +80,7 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
 
     if (raw.gasGwei) {
       gasGwei = raw.gasGwei.split(",").map((v) => {
-        const n = Number(v);
+        const n = Number(v.trim());
         if (Number.isNaN(n) || n < 0) {
           throw new Error("gasGwei must be non-negative numbers");
         }

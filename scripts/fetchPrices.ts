@@ -8,7 +8,7 @@ import { getValueInUSD } from "../services/conversionServices.js";
 
 const provider = await getProvider();
 
-const whaleAddress = "0x06920c9fc643de77b99cb7670a944ad31eaaa260";
+const whaleAddress = ethers.getAddress("0x06920C9fC643De77B99cB7670A944AD31eaAA260");
 
 type profitType = {
   raw: bigint;
@@ -40,14 +40,13 @@ export async function simulateTrade(
   // Using a whale account so that simulation does not fail due to insufficient balance
   await provider.send("hardhat_impersonateAccount", [whaleAddress]);
 
-  const whaleSigner = await provider.getSigner(whaleAddress);
+  const whaleSigner = new ethers.JsonRpcSigner(provider, whaleAddress);
 
   // Give ETH for gas so transactions don’t revert during estimation
   await provider.send("hardhat_setBalance", [
     whaleAddress,
     "0x1000000000000000000", // ~18 ETH
   ]);
-
   // ------------------ READ CONTRACTS ------------------
   const routerBuying = new ethers.Contract(
     routerBuyingAdd,
