@@ -22,6 +22,41 @@ function applySlippage(amount: bigint, slippageBps?: number): bigint {
   return (amount * factor) / 10_000n;
 }
 
+async function forgeTokenBalance(
+  tokenAddress: string,
+  ownerAddress: string,
+  amount: bigint
+): Promise<void> {
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+  for (let slot = 0; slot < 30; slot++) {
+    const storageKey = ethers.solidityPackedKeccak256(
+      ["uint256", "uint256"],
+      [ownerAddress, slot]
+    );
+
+    const original = await provider.getStorage(tokenAddress, storageKey);
+
+    await provider.send("hardhat_setStorageAt", [
+      tokenAddress,
+      storageKey,
+      ethers.zeroPadValue(ethers.toBeHex(amount), 32),
+    ]);
+
+    const actual = await token.balanceOf(ownerAddress);
+    if (actual === amount) return; // found the right slot
+
+    // wrong slot, restore and try next
+    await provider.send("hardhat_setStorageAt", [
+      tokenAddress,
+      storageKey,
+      original,
+    ]);
+  }
+
+  throw new Error(`Could not forge balance for token ${tokenAddress}`);
+}
+
 export async function simulateTrade(
   tradeSize: number,
   tokenIn: string, // selling token
@@ -32,21 +67,17 @@ export async function simulateTrade(
   gasGwei?: number
 ): Promise<profitType> {
   // this function will take into account slippage and fees to calculate realistic profit
-  console.log(
-    `flow is: buy tokenOut with tokenIn, then sell tokenOut for tokenIn`
-  );
 
   // ------------------ IMPERSONATE ------------------
-  // Using a whale account so that simulation does not fail due to insufficient balance
   await provider.send("hardhat_impersonateAccount", [whaleAddress]);
-
   const whaleSigner = new ethers.JsonRpcSigner(provider, whaleAddress);
 
-  // Give ETH for gas so transactions don’t revert during estimation
   await provider.send("hardhat_setBalance", [
     whaleAddress,
-    "0x1000000000000000000", // ~18 ETH
+    "0x1000000000000000000",
   ]);
+
+  
   // ------------------ READ CONTRACTS ------------------
   const routerBuying = new ethers.Contract(
     routerBuyingAdd,
@@ -77,6 +108,9 @@ export async function simulateTrade(
 
   const amountIn = ethers.parseUnits(tradeSize.toString(), tokenInDecimals);
 
+  // Forge tokenIn so buy leg works
+  await forgeTokenBalance(tokenIn, whaleAddress, amountIn * 2n);
+
   // ------------------ APPROVALS ------------------
   // approvals are required otherwise gas estimation / swaps will revert
   const allowanceIn = await tokenInContract.allowance(whaleAddress, routerBuyingAdd);
@@ -95,6 +129,9 @@ export async function simulateTrade(
   
   const prevAmountOut = amountsOut[1]; // amount of tokenOut received
   const amountOut = applySlippage(prevAmountOut, slippageBps);
+
+  // Forge tokenOut so sell leg gas estimation doesn't revert
+  await forgeTokenBalance(tokenOut, whaleAddress, prevAmountOut * 2n);
 
   console.log(
     `Buying ${ethers.formatUnits(
@@ -162,7 +199,7 @@ export async function simulateTrade(
       from: whaleAddress,
     });
   } catch (error: any) {
-    console.warn("⚠️ Gas estimation failed for BUY leg:", error.message);
+    console.warn("Gas estimation failed for BUY leg:", error.message);
     gasBuy = fallbackGasValue;
   }
 
@@ -172,7 +209,7 @@ export async function simulateTrade(
       from: whaleAddress,
     });
   } catch (error: any) {
-    console.warn("⚠️ Gas estimation failed for SELL leg:", error.message);
+    console.warn("Gas estimation failed for SELL leg:", error.message);
     gasSell = fallbackGasValue;
   }
 
@@ -193,15 +230,20 @@ export async function simulateTrade(
   const totalGasCostWei = totalGas * gasPrice;
 
   // ------------------ GAS → TOKEN ------------------
-  const ethToTokenIn = await routerBuying.getAmountsOut(
-    ethers.parseEther("1"),
-    [WETH, tokenIn]
-  );
+  let gasCostTokenIn: bigint;
 
-  const tokenInPerEth = ethToTokenIn[1];
+  if (tokenIn.toLowerCase() === WETH.toLowerCase()) {
+    // tokenIn is already WETH, gas cost is directly in wei
+    gasCostTokenIn = totalGasCostWei;
+  } else {
+    const ethToTokenIn = await routerBuying.getAmountsOut(
+      ethers.parseEther("1"),
+      [WETH, tokenIn]
+    );
+    const tokenInPerEth = ethToTokenIn[1];
+    gasCostTokenIn = (totalGasCostWei * tokenInPerEth) / ethers.parseEther("1");
+  }
 
-  const gasCostTokenIn =
-    (totalGasCostWei * tokenInPerEth) / ethers.parseEther("1");
 
   // ------------------ PROFIT ------------------
   const netProfit = finalAmountOut - amountIn - gasCostTokenIn; // in terms of tokenIn units

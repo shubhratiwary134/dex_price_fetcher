@@ -10,26 +10,31 @@ export function plotCurveHelper({
   theme?: ChartTheme;
   color?: ChartColor;
 }) {
-  const chartPoints = plottingData.map((p) => ({
-    label: String(p.size),
+  const allNegative = plottingData.every((p) => p.profitUSD < 0);
+  const minVal = Math.min(...plottingData.map((p) => p.profitUSD));
+
+  // Chartscii can't handle negative values, shift everything up if needed
+  const shifted = allNegative ? plottingData.map((p) => ({
+    size: p.size,
+    profitUSD: p.profitUSD - minVal + 1, // all positive now, shape preserved
+  })) : plottingData;
+
+  const chartPoints = shifted.map((p) => ({
+    label: `${p.size} ($${plottingData.find(o => o.size === p.size)!.profitUSD.toFixed(2)})`, // show real value in label
     value: p.profitUSD,
   }));
 
   const options = {
-    title: "Profit Curve",
+    title: allNegative ? "Profit Curve (all negative — showing relative shape)" : "Profit Curve",
     width: 80,
     height: 20,
     theme: theme || "pastel",
     color: color || "pink",
-    // show labels if you want them
     colorLabels: true,
     valueLabels: true,
     valueLabelsPrefix: "$",
   };
 
-  // Create an instance of Chartscii
   const chart = new Chartscii(chartPoints, options);
-
-  // Generate and print the ASCII chart
   console.log(chart.create());
 }
