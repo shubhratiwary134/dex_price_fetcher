@@ -12,8 +12,7 @@ export type RawCliArgs = {
   // shared
   tokenIn?: string;
   tokenOut?: string;
-  routerBuy?: string;
-  routerSell?: string;
+  routers?: string;        // comma separated, e.g. "UNISWAP,SUSHISWAP"
 
   // simulate
   tradeSize?: string;
@@ -38,8 +37,7 @@ export type SimulateArgs = {
   mode: "simulate";
   tokenIn: string;
   tokenOut: string;
-  routerBuy: string;
-  routerSell: string;
+  routers: [string, string];
   tradeSize: number;
 };
 
@@ -47,8 +45,7 @@ export type OptimizeArgs = {
   mode: "optimize";
   tokenIn: string;
   tokenOut: string;
-  routerBuy: string;
-  routerSell: string;
+  routers: [string, string];
   minSize: number;
   maxSize: number;
   stepSize: number;

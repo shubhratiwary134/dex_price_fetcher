@@ -1,17 +1,52 @@
 import { ethers } from "ethers";
 import { CliArgs, RawCliArgs } from "../type/cliTypes.js";
+import { ROUTER_MAP } from "../config/routers.js";
 
 export function parseArgs(): RawCliArgs {
   const args = process.argv.slice(2);
   const parsed: RawCliArgs = {};
-
   for (const arg of args) {
     if (!arg.includes("=")) continue;
     const [key, value] = arg.split("=");
     parsed[key as keyof RawCliArgs] = value;
   }
-
   return parsed;
+}
+
+function parseRouters(raw: RawCliArgs): [string, string] {
+  if (!raw.routers) {
+    throw new Error(`routers is required. Example: routers=UNISWAP,SUSHISWAP`);
+  }
+
+  const parts = raw.routers.split(",").map((r) => r.trim().toUpperCase());
+
+  if (parts.length !== 2) {
+    throw new Error(
+      `routers must be exactly 2 comma-separated values. Got: "${raw.routers}"`
+    );
+  }
+
+  const [routerA, routerB] = parts;
+  
+  if (!ROUTER_MAP[routerA as keyof typeof ROUTER_MAP]) {
+  throw new Error(
+    `Unknown router "${routerA}". Available: ${Object.keys(ROUTER_MAP).join(", ")}`
+  );
+  }
+
+  if (!ROUTER_MAP[routerB as keyof typeof ROUTER_MAP]) {
+  throw new Error(
+    `Unknown router "${routerB}". Available: ${Object.keys(ROUTER_MAP).join(", ")}`
+  );
+  }
+
+  if (routerA === routerB) {
+    throw new Error(
+      `routers must be two different routers. Got the same router twice: "${routerA}"`
+    );
+  }
+
+  return [routerA, routerB];
 }
 
 export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
@@ -22,8 +57,6 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
   if (raw.mode === "simulate") {
     if (!raw.tokenIn) throw new Error("tokenIn is required");
     if (!raw.tokenOut) throw new Error("tokenOut is required");
-    if (!raw.routerBuy) throw new Error("routerBuy is required");
-    if (!raw.routerSell) throw new Error("routerSell is required");
     if (!raw.tradeSize) throw new Error("tradeSize is required");
 
     const tradeSize = Number(raw.tradeSize);
@@ -31,12 +64,13 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       throw new Error("tradeSize must be a positive number");
     }
 
+    const routers = parseRouters(raw);
+
     return {
       mode: "simulate",
       tokenIn: raw.tokenIn,
       tokenOut: raw.tokenOut,
-      routerBuy: raw.routerBuy,
-      routerSell: raw.routerSell,
+      routers,
       tradeSize,
     };
   }
@@ -44,8 +78,6 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
   if (raw.mode === "optimize") {
     if (!raw.tokenIn) throw new Error("tokenIn is required");
     if (!raw.tokenOut) throw new Error("tokenOut is required");
-    if (!raw.routerBuy) throw new Error("routerBuy is required");
-    if (!raw.routerSell) throw new Error("routerSell is required");
     if (!raw.minSize) throw new Error("minSize is required");
     if (!raw.maxSize) throw new Error("maxSize is required");
     if (!raw.stepSize) throw new Error("stepSize is required");
@@ -54,7 +86,7 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
     const minSize = Number(raw.minSize);
     const maxSize = Number(raw.maxSize);
     const stepSize = Number(raw.stepSize);
-    const curve = Boolean(raw.curve);
+    const curve = raw.curve === "true";
 
     if (minSize <= 0 || maxSize <= 0 || stepSize <= 0) {
       throw new Error("minSize, maxSize, stepSize must be positive numbers");
@@ -65,7 +97,6 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
     }
 
     let slippageBps: number[] | undefined;
-
     let gasGwei: number[] | undefined;
 
     if (raw.slippageBps) {
@@ -88,12 +119,13 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
       });
     }
 
+    const routers = parseRouters(raw);
+
     return {
       mode: "optimize",
       tokenIn: raw.tokenIn,
       tokenOut: raw.tokenOut,
-      routerBuy: raw.routerBuy,
-      routerSell: raw.routerSell,
+      routers,
       minSize,
       maxSize,
       stepSize,
@@ -119,11 +151,8 @@ export function resolveAddress(
   input?: string
 ): string {
   if (!input) throw new Error("Missing input");
-
   if (ethers.isAddress(input as string)) return input;
-
   const resolved = map[input.toUpperCase()];
   if (!resolved) throw new Error(`Unknown value: ${input}`);
-
   return resolved;
 }

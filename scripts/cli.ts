@@ -18,38 +18,62 @@ async function main() {
   if (args.mode === "simulate") {
     const tokenIn = resolveAddress(TOKEN_MAP, args.tokenIn);
     const tokenOut = resolveAddress(TOKEN_MAP, args.tokenOut);
-    const routerBuy = resolveAddress(ROUTER_MAP, args.routerBuy);
-    const routerSell = resolveAddress(ROUTER_MAP, args.routerSell);
+    const [routerAName, routerBName] = args.routers;
+    const routerA = resolveAddress(ROUTER_MAP, routerAName);
+    const routerB = resolveAddress(ROUTER_MAP, routerBName);
 
-    await simulateTrade(
-      args.tradeSize,
-      tokenIn,
-      tokenOut,
-      routerBuy,
-      routerSell
-    );
+    console.log(`\n--- Direction A: Buy on ${routerAName}, Sell on ${routerBName} ---`);
+    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerA, routerB);
+
+    console.log(`\n--- Direction B: Buy on ${routerBName}, Sell on ${routerAName} ---`);
+    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerB, routerA);
 
     return;
-  } else if (args.mode === "optimize") {
+  }
+
+  if (args.mode === "optimize") {
     const tokenIn = resolveAddress(TOKEN_MAP, args.tokenIn);
     const tokenOut = resolveAddress(TOKEN_MAP, args.tokenOut);
-    const routerBuy = resolveAddress(ROUTER_MAP, args.routerBuy);
-    const routerSell = resolveAddress(ROUTER_MAP, args.routerSell);
-
+    const [routerAName, routerBName] = args.routers;
+    const routerA = resolveAddress(ROUTER_MAP, routerAName);
+    const routerB = resolveAddress(ROUTER_MAP, routerBName);
     const slippageInfo = args.slippageBps ?? [0];
-
     const gasGweiInfo = args.gasGwei ?? [0];
 
+    // --- Probe both directions with a single mid-range trade size ---
+    const probeSize = (args.minSize + args.maxSize) / 2;
+
+    console.log(`\n Probing both directions with trade size ${probeSize}...`);
+
+    const [probeAB, probeBA] = await Promise.all([
+      simulateTrade(probeSize, tokenIn, tokenOut, routerA, routerB, 0, 0),
+      simulateTrade(probeSize, tokenIn, tokenOut, routerB, routerA, 0, 0),
+    ]);
+
+    // Pick the more profitable direction
+    const dirABIsBetter = probeAB.raw >= probeBA.raw;
+
+    const direction = dirABIsBetter
+      ? { label: `${routerAName} → ${routerBName}`, routerBuy: routerA, routerSell: routerB }
+      : { label: `${routerBName} → ${routerAName}`, routerBuy: routerB, routerSell: routerA };
+
+    console.log(`Better direction: ${direction.label}`);
+    console.log(`   (A→B raw: ${probeAB.raw}, B→A raw: ${probeBA.raw})`);
+
+    // --- Full optimize loop on the winning direction only ---
     const breakEvens: BreakEven[] = [];
+
+    console.log(`\n${"=".repeat(50)}`);
+    console.log(`Optimizing: ${direction.label}`);
+    console.log(`${"=".repeat(50)}`);
 
     for (const slippage of slippageInfo) {
       for (const gasGwei of gasGweiInfo) {
-        // we find the perfect trade size for each slippage value provided
         const { results, bestResult } = await findPerfectTradeSize({
           tokenIn,
           tokenOut,
-          routerBuy,
-          routerSell,
+          routerBuy: direction.routerBuy,
+          routerSell: direction.routerSell,
           minSize: args.minSize,
           maxSize: args.maxSize,
           stepSize: args.stepSize,
@@ -60,11 +84,10 @@ async function main() {
         for (let i = 1; i < results.length; i++) {
           const prevProfit = Number(results[i - 1].profitUSD);
           const currProfit = Number(results[i].profitUSD);
-
           if (prevProfit < 0 && currProfit >= 0) {
             breakEvens.push({
               slippage,
-              gasGwei: gasGwei,
+              gasGwei,
               fromSize: results[i - 1].size,
               toSize: results[i].size,
             });
@@ -73,55 +96,53 @@ async function main() {
         }
 
         if (args.curve) {
-          // Plotting logic would go here
+
           const plottingData = results.map((point) => ({
             size: point.size,
             profitUSD: Number(point.profitUSD),
           }));
-
           plotCurveHelper({ plottingData });
         }
 
         if (bestResult) {
-          console.log(`\nOptimal Trade Size for ${slippage} bps :`);
-          console.log(`→ ${bestResult.size} → $${bestResult.profitUSD}`);
+          console.log(`\nOptimal Trade Size [slippage=${slippage}bps gas=${gasGwei}gwei]:`);
+          console.log(`→ size: ${bestResult.size} → profit: $${bestResult.profitUSD}`);
         }
       }
     }
 
-    console.log("\n📍 Break-even Summary");
-    console.log("--------------------");
+    console.log(`\n📍 Break-even Summary — ${direction.label}`);
+    console.log("-".repeat(40));
 
-    for (const breakEven of breakEvens) {
-      console.log(
-        `Slippage ${breakEven.slippage} bps | Gas ${
-          breakEven.gasGwei ?? "live"
-        } gwei → ` + `between ${breakEven.fromSize} and ${breakEven.toSize}`
-      );
+    if (breakEvens.length === 0) {
+      console.log("No break-even found — unprofitable across all scenarios");
+    } else {
+      for (const breakEven of breakEvens) {
+        console.log(
+          `Slippage ${breakEven.slippage}bps | Gas ${breakEven.gasGwei ?? "live"}gwei → ` +
+          `between ${breakEven.fromSize} and ${breakEven.toSize}`
+        );
+      }
     }
 
-    const totalBreakEvens = breakEvens.length;
     const totalWorlds = slippageInfo.length * gasGweiInfo.length;
-    console.log(
-      `\n Viable in ${totalBreakEvens} / ${totalWorlds} execution environments`
-    );
+    console.log(`Viable in ${breakEvens.length} / ${totalWorlds} execution environments`);
 
     return;
-  } else if (args.mode === "price") {
+  }
+
+  if (args.mode === "price") {
     const token = resolveAddress(TOKEN_MAP, args.token);
     const valueInUSD = await getValueInUSD(token);
-
     console.log("========================");
     if (valueInUSD) {
-      console.log(
-        `price of one unit of token ${args.token} in USD: $${valueInUSD.formatted}`
-      );
+      console.log(`price of one unit of token ${args.token} in USD: $${valueInUSD.formatted}`);
     }
     return;
   }
 }
 
 main().catch((err) => {
-  console.error(" CLI Error:", err.message);
+  console.error("CLI Error:", err.message);
   process.exitCode = 1;
 });
