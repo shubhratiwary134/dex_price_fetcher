@@ -1,19 +1,40 @@
 {
-  "name": "dex_price_fetcher",
+  "name": "dex-arb-simulator",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "CLI tool to simulate and optimize DEX arbitrage opportunities on a forked mainnet",
+  "author": "Shubhra Tiwary",
+  "license": "MIT",
+  "keywords": [
+    "defi",
+    "arbitrage",
+    "dex",
+    "uniswap",
+    "sushiswap",
+    "ethereum",
+    "cli",
+    "hardhat"
+  ],
+  "type": "module",
+  "main": "./dist/scripts/cli.js",
+  "bin": {
+    "dex-arb": "dist/scripts/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0"
   },
-  "type": "module",
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.4",
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.1",
@@ -22,7 +43,6 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.0",
     "chai": "^5.3.3",
-    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.0.11",
     "mocha": "^11.7.5",
     "typescript": "~5.8.0"

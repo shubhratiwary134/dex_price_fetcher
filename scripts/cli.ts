@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { simulateTrade } from "./fetchPrices.js";
 import { TOKEN_MAP } from "../config/tokens.js";
 import { ROUTER_MAP } from "../config/routers.js";

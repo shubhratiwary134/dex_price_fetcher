@@ -8,6 +8,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "moduleResolution": "node16",
-    "outDir": "dist"
-  }
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "hardhat.config.ts",
+    "ignition",
+    "test"
+  ]
 }
