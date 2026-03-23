@@ -10,7 +10,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "chartscii": "^3.2.0",
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0"
   },
