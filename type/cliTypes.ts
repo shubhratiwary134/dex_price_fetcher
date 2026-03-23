@@ -39,6 +39,8 @@ export type SimulateArgs = {
   tokenOut: string;
   routers: [string, string];
   tradeSize: number;
+  slippageBps?: number;
+  gasGwei?: number;
 };
 
 export type OptimizeArgs = {

@@ -72,12 +72,29 @@ export function parseAndValidateArgs(raw: RawCliArgs): CliArgs {
 
     const routers = parseRouters(raw);
 
+    let slippageBps: number | undefined;
+    let gasGwei: number | undefined;
+
+    if (raw.slippageBps) {
+    const n = Number(raw.slippageBps);
+    if (Number.isNaN(n) || n < 0) throw new Error("slippageBps must be a non-negative number");
+    slippageBps = n;
+    }
+
+    if (raw.gasGwei) {
+    const n = Number(raw.gasGwei);
+    if (Number.isNaN(n) || n < 0) throw new Error("gasGwei must be a non-negative number");
+    gasGwei = n;
+    }
+
     return {
       mode: "simulate",
       tokenIn: raw.tokenIn,
       tokenOut: raw.tokenOut,
       routers,
       tradeSize,
+      slippageBps,
+      gasGwei,
     };
   }
 

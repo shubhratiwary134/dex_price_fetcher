@@ -25,10 +25,10 @@ async function main() {
     const routerB = resolveAddress(ROUTER_MAP, routerBName);
 
     console.log(`\n--- Direction A: Buy on ${routerAName}, Sell on ${routerBName} ---`);
-    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerA, routerB);
+    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerA, routerB, args.slippageBps, args.gasGwei);
 
     console.log(`\n--- Direction B: Buy on ${routerBName}, Sell on ${routerAName} ---`);
-    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerB, routerA);
+    await simulateTrade(args.tradeSize, tokenIn, tokenOut, routerB, routerA, args.slippageBps, args.gasGwei);
 
     return;
   }
