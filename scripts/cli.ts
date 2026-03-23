@@ -4,6 +4,8 @@ import { ROUTER_MAP } from "../config/routers.js";
 import { findPerfectTradeSize } from "../helpers/tradeSizeHelper.js";
 import { plotCurveHelper } from "../helpers/plotCurveHelper.js";
 import { getValueInUSD } from "../services/conversionServices.js";
+import { saveReport } from "../helpers/reportHelpers.js";
+import { ReportData, ReportScenario } from "../type/reportTypes.js";
 import {
   parseAndValidateArgs,
   parseArgs,
@@ -62,6 +64,7 @@ async function main() {
 
     // --- Full optimize loop on the winning direction only ---
     const breakEvens: BreakEven[] = [];
+    const reportScenarios: ReportScenario[] = [];
 
     console.log(`\n${"=".repeat(50)}`);
     console.log(`Optimizing: ${direction.label}`);
@@ -81,16 +84,19 @@ async function main() {
           gasGwei,
         });
 
+        let breakEven: BreakEven | undefined;
+
         for (let i = 1; i < results.length; i++) {
           const prevProfit = Number(results[i - 1].profitUSD);
           const currProfit = Number(results[i].profitUSD);
           if (prevProfit < 0 && currProfit >= 0) {
-            breakEvens.push({
-              slippage,
-              gasGwei,
-              fromSize: results[i - 1].size,
-              toSize: results[i].size,
-            });
+               breakEven = {          // assign here
+                     slippage,
+                     gasGwei,
+                     fromSize: results[i - 1].size,
+                     toSize: results[i].size,
+              };
+              breakEvens.push(breakEven);
             break;
           }
         }
@@ -108,6 +114,15 @@ async function main() {
           console.log(`\nOptimal Trade Size [slippage=${slippage}bps gas=${gasGwei}gwei]:`);
           console.log(`→ size: ${bestResult.size} → profit: $${bestResult.profitUSD}`);
         }
+        
+        reportScenarios.push({
+        slippage,
+        gasGwei,
+        bestSize: bestResult?.size ?? 0,
+        bestProfitUSD: bestResult?.profitUSD ?? "0",
+        results: results.map((r) => ({ size: r.size, profitUSD: r.profitUSD })),
+        breakEven,
+      });
       }
     }
 
@@ -127,6 +142,26 @@ async function main() {
 
     const totalWorlds = slippageInfo.length * gasGweiInfo.length;
     console.log(`Viable in ${breakEvens.length} / ${totalWorlds} execution environments`);
+
+    const reportData: ReportData = {
+    metadata: {
+      timestamp: new Date().toISOString(),
+      tokenIn: args.tokenIn,
+      tokenOut: args.tokenOut,
+      routerA: routerAName,
+      routerB: routerBName,
+      chosenDirection: direction.label,
+      minSize: args.minSize,
+      maxSize: args.maxSize,
+      stepSize: args.stepSize,
+    },
+    scenarios: reportScenarios,
+    viableScenariosCount: breakEvens.length,
+    totalScenariosCount: totalWorlds,
+  };
+
+  const reportPath = saveReport(reportData);
+  console.log(`\n📄 Report saved: ${reportPath}`);
 
     return;
   }
