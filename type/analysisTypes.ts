@@ -17,3 +17,14 @@ export type worldSummary = {
   breakEvenLower?: number;
   breakEvenUpper?: number;
 };
+
+export type TradeQuotes = {
+  rawAmountOut: bigint;
+  rawFinalAmountOut: bigint;
+  gasUnits: bigint;
+  tokenInPerEth: bigint;
+  tokenInDecimals: number;
+  tokenOutDecimals: number;
+  amountIn: bigint;
+  priceTokenInUSD: { raw: bigint; decimals: number; formatted: string };
+};
