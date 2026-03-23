@@ -1,40 +1,57 @@
-import Chartscii from "chartscii";
-import { ChartColor, ChartTheme } from "../type/cliTypes.js";
-
 export function plotCurveHelper({
   plottingData,
-  theme,
-  color,
 }: {
   plottingData: { size: number; profitUSD: number }[];
-  theme?: ChartTheme;
-  color?: ChartColor;
 }) {
-  const allNegative = plottingData.every((p) => p.profitUSD < 0);
+  const chartHeight = 20;
+  const barWidth = 7;
   const minVal = Math.min(...plottingData.map((p) => p.profitUSD));
+  const maxVal = Math.max(...plottingData.map((p) => p.profitUSD));
+  const range = maxVal - minVal || 1;
 
-  // Chartscii can't handle negative values, shift everything up if needed
-  const shifted = allNegative ? plottingData.map((p) => ({
-    size: p.size,
-    profitUSD: p.profitUSD - minVal + 1, // all positive now, shape preserved
-  })) : plottingData;
+  console.log("\n  Profit Curve\n");
 
-  const chartPoints = shifted.map((p) => ({
-    label: `${p.size} ($${plottingData.find(o => o.size === p.size)!.profitUSD.toFixed(2)})`, // show real value in label
-    value: p.profitUSD,
-  }));
+  // Draw rows from top to bottom
+  for (let row = chartHeight; row >= 0; row--) {
+    const rowValue = minVal + (row / chartHeight) * range;
 
-  const options = {
-    title: allNegative ? "Profit Curve (all negative — showing relative shape)" : "Profit Curve",
-    width: 80,
-    height: 20,
-    theme: theme || "pastel",
-    color: color || "pink",
-    colorLabels: true,
-    valueLabels: true,
-    valueLabelsPrefix: "$",
-  };
+    // Y-axis label every 5 rows
+    const yLabel = row % 5 === 0
+      ? `$${rowValue.toFixed(0)}`.padStart(12)
+      : " ".repeat(12);
 
-  const chart = new Chartscii(chartPoints, options);
-  console.log(chart.create());
+    let line = `${yLabel} │`;
+
+    for (const point of plottingData) {
+      const barHeight = Math.round(
+        ((point.profitUSD - minVal) / range) * chartHeight
+      );
+      const filled = row <= barHeight;
+      line += filled
+        ? " ███ ".padEnd(barWidth)
+        : " ".repeat(barWidth);
+    }
+
+    console.log(line);
+  }
+
+  // X-axis line
+  const axisWidth = plottingData.length * barWidth + 1;
+  console.log(`${"─".repeat(12)}─┴${"─".repeat(axisWidth)}`);
+
+  // Trade size labels
+  let sizeRow = " ".repeat(13) + "│";
+  for (const point of plottingData) {
+    sizeRow += String(point.size).padStart(Math.floor(barWidth / 2) + 1).padEnd(barWidth);
+  }
+  console.log(sizeRow);
+
+  // Profit labels
+  let profitRow = " ".repeat(13) + " ";
+  for (const point of plottingData) {
+    const label = `$${point.profitUSD.toFixed(0)}`;
+    profitRow += label.padStart(Math.floor(barWidth / 2) + 1).padEnd(barWidth);
+  }
+  console.log("\n" + profitRow);
+  console.log();
 }
