@@ -46,12 +46,4 @@ export function plotCurveHelper({
   }
   console.log(sizeRow);
 
-  // Profit labels
-  let profitRow = " ".repeat(13) + " ";
-  for (const point of plottingData) {
-    const label = `$${point.profitUSD.toFixed(0)}`;
-    profitRow += label.padStart(Math.floor(barWidth / 2) + 1).padEnd(barWidth);
-  }
-  console.log("\n" + profitRow);
-  console.log();
 }
